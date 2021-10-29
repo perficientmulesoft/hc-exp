@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd  http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+    <http:listener-config name="hc-exp-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <file:config name="File_Config" doc:name="File Config" doc:id="5fde2cc8-59c5-421f-9b0c-8b4da74a5f48">
+        <file:connection workingDir="${app.home}" />
+    </file:config>
+    <apikit:config name="hc-exp-config" api="hc-exp.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="f162ba28-52a9-4b47-9b72-a44a11af3a63" basePath="/api">
+        <http:request-connection host="hc-prc.us-e2.cloudhub.io" />
+    </http:request-config>
+    <flow name="hc-exp-main">
+        <http:listener config-ref="hc-exp-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="hc-exp-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="hc-exp-console">
+        <http:listener config-ref="hc-exp-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="hc-exp-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xsi:schemaLocation=" http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="get:\healthyme:hc-exp-config">
+        <logger level="INFO" doc:name="logger" doc:id="802062f2-14f8-46d0-8bff-e8aacd322b73" message="flow called to fetch the web page"/>
+		<set-variable value="#[p('app.home')++ &quot;\web\img.png&quot;]" doc:name="Set Variable for logo" doc:id="e73b0b09-a6aa-4260-9b0f-456830a89340" variableName="image"/>
+		<parse-template doc:name="loading main web page" doc:id="d8ecc788-4142-455d-ba46-2e282313d1c0" location="web\healthyMe3.html"/>
+        <logger level="INFO" doc:name="Initial Logger" doc:id="44950dba-422b-47a0-9cd4-bd1e26ac27e5" message="HTML Loaded" />
+        <set-payload value="#[payload]" doc:name="text to HTML" doc:id="16c60420-0368-4050-97c0-fadc8af12e21" mimeType="text/html" />
+    </flow>
+    <flow name="get:\healthymeresponse:hc-exp-config">
+        <ee:transform doc:name="attributes to payload" doc:id="46e7e5ba-ee7d-4b34-b67e-02852d36ca69">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	hospitalname: attributes.queryParams.fname
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <logger level="INFO" doc:name="logger" doc:id="8f1b4748-0812-44ef-a64b-28427f05b408" message="calling hc-prc for bedavailablity"/>
+		<try doc:name="Try" doc:id="a374fce4-8e52-4319-a1e9-b43a05acb615" >
+			<http:request method="POST" doc:name="hc-prc-bedavailablity" doc:id="73833619-177b-4149-b1de-b7af95b55c13" config-ref="HTTP_Request_configuration" path="/healthyMe">
+            <http:body><![CDATA[#[output application/json
+---
+{
+userQuery:payload.hospitalname,
+"flag": "1"
+
+}]]]></http:body>
+        </http:request>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="e320762f-8e28-4433-9320-a89d62725c3c" >
+					<logger level="INFO" doc:name="logger" doc:id="70d6fbb7-8762-46f1-875e-0501d3650461" message="inside on error continue" />
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="logger" doc:id="d9480174-701e-4110-bb8a-5e96f6772003" message="status code after calling hc-prc is #[attributes.statusCode]"/>
+		<choice doc:name="StatusCode Validation" doc:id="99ee4dca-3b28-4b33-a5d6-fbeb3472d109">
+            <when expression="#[attributes.statusCode==&quot;200&quot; or attributes.statusCode==200]">
+                <ee:transform doc:name="successPayload" doc:id="783aabd7-54c5-4012-b148-70e50ee076cf">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <otherwise>
+                <ee:transform doc:name="errorPayload" doc:id="41a97291-4ab2-4219-82f1-a0f6960bd9d5">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	error: "there is some error"
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </otherwise>
+        </choice>
+		<logger level="INFO" doc:name="logger" doc:id="34ead3b3-0de3-4df0-80db-b986ca35aa9c" message="flow ends for bedavailablity"/>
+    </flow>
+    <flow name="get:\healthymehospital:hc-exp-config">
+		<ee:transform doc:name="attributes to payload" doc:id="a4e15cf5-284f-4b89-a960-e6d983e5f456">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	HospitalName: attributes.queryParams.hospitalName,
+	AvailableBedCount:attributes.queryParams.availableBeds as String,
+	City: attributes.queryParams.cityName,
+	AvailableICUBedCount: attributes.queryParams.availableIcuBeds as String,
+	ContactNumber: attributes.queryParams.contactNo,
+	flag:"3"
+}
+
+
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="logger" doc:id="6813f516-527e-4e78-8e08-5dbe21c13f91" message="calling hc-prc to update hospital information" />
+		<try doc:name="Try" doc:id="4fe2925c-7e9a-4f78-8fd8-36cfa7fe43a6" >
+			<http:request method="POST" doc:name="update-hospital-info" doc:id="9b5104c8-9188-4737-9002-a37483ac67c2" config-ref="HTTP_Request_configuration" path="/healthyMe">
+		</http:request>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="237b45a5-d218-4d40-aae7-3e8ba415ea63" >
+					<logger level="INFO" doc:name="logger" doc:id="36c801e4-a465-49a1-9a96-21016409f233" message="inside on error continue" />
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="logger" doc:id="b9376832-1129-4c4a-93e9-f1c2e74344b1" message="status code after calling hc-prc is #[attributes.statusCode]" />
+		<choice doc:name="StatusCode Validation" doc:id="f347f613-c7ca-43f5-aec1-0bab83d9657a" >
+			<when expression='#[attributes.statusCode=="200" or attributes.statusCode==200]' >
+				<ee:transform doc:name="successPayload" doc:id="ebb1473a-6e5b-4fbe-8fc3-9084c95622d6" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="errorPayload" doc:id="7f86c672-ff6d-47d4-8df7-f20abff4b2c4" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	error: "there is some error"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="logger" doc:id="84958624-13a7-40ab-8746-7cdef2be8615" message="flow ends for updating hospital information" />
+    </flow>
+    <flow name="get:\healthymepatient:hc-exp-config">
+		<ee:transform doc:name="attributes to payload" doc:id="20b39b89-f514-48ef-bec5-f42cf00fffaf" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	patientId: attributes.queryParams.patiendId
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="logger" doc:id="1c84615a-5ebc-4b42-a770-43f7e2f13f78" message="calling hc-prc for patient information" />
+		<try doc:name="Try" doc:id="42564315-1dcd-42b7-950b-c6d7942958cd" >
+			<http:request method="POST" doc:name="hc-prc-patient" doc:id="df4cba9d-7577-4332-819e-45cd9b64a2f5" config-ref="HTTP_Request_configuration" path="/healthyMe">
+			<http:body><![CDATA[#[output application/json
+---
+{
+patientId:payload.patientId,
+"flag": "2"
+}]]]></http:body>
+		</http:request>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="cbb1ce9a-ca9d-4259-b489-3e7f3bfab75d" >
+					<logger level="INFO" doc:name="logger" doc:id="e5107c07-2b4a-4aef-9f22-a8bc631e211d" message="inside on error continue" />
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="logger" doc:id="f4d8c060-d2ca-4757-b9b2-c9022217caf5" message="status code after calling hc-prc is #[attributes.statusCode]" />
+		<choice doc:name="StatusCode Validation" doc:id="190ae156-4314-4950-bdf4-185622c22155" >
+			<when expression='#[attributes.statusCode=="200" or attributes.statusCode==200]' >
+				<ee:transform doc:name="successPayload" doc:id="d59d4017-b670-4aa7-b3a9-20584677c217" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="errorPayload" doc:id="1d4c19c7-5d04-4eec-bc88-d3da96ba2d78" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	error: "there is some error"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="logger" doc:id="7e3e686d-23fc-41a8-b849-b04fe1d87b26" message="flow ends for  getting  patient information" />
+    </flow>
+</mule>
